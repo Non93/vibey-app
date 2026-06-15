@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeY - Cyberpunk Social-Fi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <style>
+        body { background: #0d1117; font-family: 'Inter', system-ui, sans-serif; }
+        .glass { background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(24px); border: 1px solid rgba(192, 38, 211, 0.3); }
+        .neon-purple { text-shadow: 0 0 20px #c026d3, 0 0 40px #c026d3; }
+        .neon-cyan { text-shadow: 0 0 20px #22d3ee, 0 0 40px #22d3ee; }
+        .post-card { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .post-card:hover { transform: translateY(-10px); box-shadow: 0 0 50px rgba(192, 38, 211, 0.6); }
+        .heart-burst { animation: heartBurst 0.6s ease forwards; }
+        @keyframes heartBurst { 0% { transform: scale(1); } 40% { transform: scale(1.7); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body class="min-h-screen text-slate-200 pb-24">
+
+    <!-- Navbar -->
+    <nav class="fixed top-0 w-full glass border-b border-white/10 z-50">
+        <div class="max-w-2xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-4xl font-bold neon-purple tracking-widest">VIBEY</h1>
+            <div class="flex items-center gap-4">
+                <button onclick="showStore()" class="px-6 py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl text-sm font-medium transition">🛒 Store</button>
+                <button onclick="showWallet()" class="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-cyan-500 px-6 py-2.5 rounded-2xl font-medium">
+                    <i class="fa-solid fa-wallet"></i>
+                    <span id="nav-balance">248.5 $VBY</span>
+                </button>
+                <div class="w-9 h-9 bg-gradient-to-br from-purple-500 to-cyan-500 rounded-2xl flex items-center justify-center font-bold cursor-pointer">U</div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-2xl mx-auto pt-20 px-4">
+        <!-- Stats -->
+        <div class="glass rounded-3xl p-5 mb-8 grid grid-cols-3 text-center">
+            <div><span class="block text-3xl font-bold text-purple-400">12.8K</span><span class="text-xs text-slate-400">สมาชิก</span></div>
+            <div><span class="block text-3xl font-bold text-cyan-400">142K</span><span class="text-xs text-slate-400">ยอดวิว</span></div>
+            <div><span class="block text-3xl font-bold text-emerald-400">4.1K</span><span class="text-xs text-slate-400">$VBY</span></div>
+        </div>
+
+        <!-- Create Post -->
+        <div class="glass rounded-3xl p-6 mb-8">
+            <textarea id="caption" rows="3" class="w-full bg-transparent border border-white/20 rounded-2xl p-4 focus:outline-none focus:border-purple-500 placeholder-slate-400" placeholder="กำลังคิดอะไรอยู่ในคืนนี้..."></textarea>
+            <div id="preview" class="mt-4 rounded-2xl overflow-hidden border border-white/10 hidden"></div>
+            <div class="flex justify-between items-center mt-5">
+                <label class="cursor-pointer text-3xl hover:text-purple-400 transition-all">
+                    <i class="fa-solid fa-image"></i>
+                    <input type="file" id="fileInput" accept="image/*,video/*" class="hidden" onchange="handleFile(this)">
+                </label>
+                <button onclick="createPost()" class="bg-gradient-to-r from-purple-600 via-pink-500 to-cyan-500 px-10 py-3 rounded-2xl font-semibold hover:scale-105 active:scale-95 transition-all">โพสต์เลย</button>
+            </div>
+        </div>
+
+        <!-- Feed -->
+        <div id="feed"></div>
+    </div>
+
+    <!-- Wallet Modal -->
+    <div id="walletModal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-[100]">
+        <div class="glass rounded-3xl p-8 w-full max-w-md mx-4">
+            <h2 class="text-3xl font-bold neon-purple mb-6 text-center">YOUR WALLET</h2>
+            <div class="space-y-6">
+                <div class="bg-white/5 rounded-2xl p-6">
+                    <p class="text-slate-400">Like Points</p>
+                    <p id="points-display" class="text-5xl font-bold">245</p>
+                </div>
+                <div class="bg-white/5 rounded-2xl p-6">
+                    <p class="text-slate-400">$VBY Balance</p>
+                    <p id="vby-display" class="text-5xl font-bold text-cyan-400">248.5</p>
+                </div>
+            </div>
+            <button onclick="showStore()" class="w-full mt-8 py-4 bg-gradient-to-r from-purple-600 to-pink-500 rounded-2xl font-bold text-lg">ซื้อ Like Points</button>
+            <button onclick="closeModal('walletModal')" class="w-full mt-3 py-3 text-slate-400 hover:text-white">ปิด</button>
+        </div>
+    </div>
+
+    <script>
+        let posts = JSON.parse(localStorage.getItem('vibey_posts')) || [];
+        let likePoints = parseInt(localStorage.getItem('vibey_likes')) || 245;
+        let vbyBalance = parseFloat(localStorage.getItem('vibey_vby')) || 248.5;
+
+        function savePosts() {
+            localStorage.setItem('vibey_posts', JSON.stringify(posts));
+            localStorage.setItem('vibey_likes', likePoints);
+            localStorage.setItem('vibey_vby', vbyBalance);
+        }
+
+        function handleFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                const preview = document.getElementById('preview');
+                preview.innerHTML = file.type.startsWith('video') 
+                    ? `<video src="${e.target.result}" controls class="w-full rounded-2xl"></video>` 
+                    : `<img src="${e.target.result}" class="w-full rounded-2xl">`;
+                preview.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function createPost() {
+            const caption = document.getElementById('caption').value.trim();
+            const preview = document.getElementById('preview');
+            
+            if (!caption && preview.classList.contains('hidden')) {
+                alert("กรุณาใส่เนื้อหาหรือเลือกรูป/วีดีโอ");
+                return;
+            }
+
+            const hasMedia = preview.querySelector('img, video');
+            const newPost = {
+                id: Date.now(),
+                username: "คุณ",
+                time: "ตอนนี้",
+                caption: caption || "โพสต์ใหม่จากนีออน",
+                media: hasMedia ? hasMedia.src : null,
+                type: preview.innerHTML.includes('<video') ? 'video' : 'image',
+                likes: 0,
+                comments: []
+            };
+
+            posts.unshift(newPost);
+            savePosts();
+            renderFeed();
+            
+            document.getElementById('caption').value = '';
+            preview.innerHTML = '';
+            preview.classList.add('hidden');
+            alert("🚀 โพสต์สำเร็จแล้ว!");
+        }
+
+        function renderFeed() {
+            const feed = document.getElementById('feed');
+            if (posts.length === 0) {
+                feed.innerHTML = `<div class="text-center text-slate-500 py-10">ยังไม่มีโพสต์ในระบบ เริ่มโพสต์เลยสิ!</div>`;
+                return;
+            }
+
+            feed.innerHTML = posts.map((post, i) => {
+                const mediaHTML = post.media 
+                    ? (post.type === 'video' ? `<video src="${post.media}" controls class="w-full"></video>` : `<img src="${post.media}" class="w-full">`) 
+                    : '';
+                return `
+                <div class="post-card glass rounded-3xl overflow-hidden mb-8">
+                    <div class="p-4 flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center text-2xl">👤</div>
+                        <div>
+                            <p class="font-semibold">${post.username}</p>
+                            <p class="text-xs text-slate-400">${post.time}</p>
+                        </div>
+                    </div>
+                    ${mediaHTML}
+                    <div class="p-5">
+                        <p class="text-[17px] leading-relaxed">${post.caption}</p>
+                        <div class="flex gap-8 mt-6 text-3xl">
+                            <button onclick="likePost(${i})" class="hover:text-pink-400 transition-all text-left">
+                                <i class="fa-solid fa-heart text-pink-500"></i> 
+                                <span class="text-base text-slate-300 ml-1">${post.likes}</span>
+                            </button>
+                            <button onclick="toggleComment(${i})" class="hover:text-cyan-400 transition-all"><i class="fa-solid fa-comment-dots"></i></button>
+                        </div>
+                        <div id="comment-section-${i}" class="hidden mt-6 pt-4 border-t border-white/10">
+                            <div id="comments-list-${i}" class="mb-4 max-h-60 overflow-y-auto space-y-3"></div>
+                            <div class="flex gap-2">
+                                <input id="comment-input-${i}" type="text" placeholder="พิมพ์คอมเมนต์..." class="flex-1 bg-transparent border border-white/20 rounded-2xl px-4 py-3 focus:outline-none">
+                                <button onclick="sendComment(${i})" class="bg-purple-600 hover:bg-purple-700 px-7 rounded-2xl">ส่ง</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function likePost(i) {
+            posts[i].likes++;
+            likePoints = Math.max(0, likePoints - 1);
+            savePosts();
+            renderFeed();
+            updateBalance();
+        }
+
+        function toggleComment(i) {
+            const section = document.getElementById(`comment-section-${i}`);
+            section.classList.toggle('hidden');
+            if (!section.classList.contains('hidden')) renderComments(i);
+        }
+
+        function renderComments(i) {
+            const container = document.getElementById(`comments-list-${i}`);
+            if (!posts[i].comments) posts[i].comments = [];
+            
+            if (posts[i].comments.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-500">ยังไม่มีความคิดเห็น</p>`;
+                return;
+            }
+            container.innerHTML = posts[i].comments.map(c => `
+                <div class="bg-white/5 rounded-2xl px-4 py-3 text-sm">${c}</div>
+            `).join('');
+        }
+
+        function sendComment(i) {
+            const input = document.getElementById(`comment-input-${i}`);
+            if (!input.value.trim()) return;
+            if (!posts[i].comments) posts[i].comments = [];
+            
+            posts[i].comments.push(input.value.trim());
+            savePosts();
+            renderComments(i);
+            input.value = '';
+        }
+
+        function showWallet() {
+            document.getElementById('walletModal').classList.remove('hidden');
+            document.getElementById('points-display').textContent = likePoints;
+            document.getElementById('vby-display').textContent = vbyBalance.toFixed(1);
+        }
+
+        function showStore() {
+            const amount = prompt("ใส่จำนวน Like Points ที่ต้องการซื้อ (50, 150, 500):", "150");
+            if (amount) {
+                const points = parseInt(amount);
+                if ([50,150,500,1000].includes(points)) {
+                    likePoints += points;
+                    savePosts();
+                    alert(`✅ ซื้อสำเร็จ! +${points} Like Points`);
+                    updateBalance();
+                } else {
+                    alert("กรุณาเลือกจำนวนที่กำหนด");
+                }
+            }
+        }
+
+        function updateBalance() {
+            document.getElementById('nav-balance').textContent = vbyBalance.toFixed(1) + " $VBY";
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        window.onload = () => {
+            renderFeed();
+            updateBalance();
+        };
+    </script>
+</body>
+</html>
